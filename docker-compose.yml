@@ -1,0 +1,56 @@
+services:
+  # 1. SERVICIO DE BASE DE DATOS (PostgreSQL)
+  db:
+    image: postgres:14-alpine
+    container_name: postgres_anonconnect
+    restart: always
+    environment:
+      # Carga las variables desde tu .env existente
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    
+    # Montamos un volumen para que los datos de la DB persistan
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Puedes mapear el puerto 5432 si quieres acceder a la DB desde tu máquina
+      - "5432:5432"
+
+ # 2. SERVICIO DE APLICACIÓN (Tu API Node.js)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: anonconnect_api
+    restart: always
+    environment:
+      # 🔑 CLAVE: Inyectamos 'db' como el host para la API
+      DB_HOST: db 
+      DB_PORT: 5432
+      # Carga las variables de autenticación y seguridad desde tu .env
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET} 
+      PORT: ${PORT} 
+      
+    # Mapea el puerto 3000 del contenedor al puerto 3000 de tu máquina
+    ports:
+      - "${PORT}:${PORT}"
+      
+    # Asegura que la API no se inicie antes de que la DB esté lista
+    depends_on:
+      - db
+      
+    # 🔑 FIX CLAVE: Espera 10 segundos antes de ejecutar "npm start"
+    command: ["sh", "-c", "sleep 10 && npm start"] 
+      
+    # Volumen para sincronizar el código fuente (ideal para desarrollo)
+    volumes:
+      - .:/app
+      - /app/node_modules # Esto previene que el nodo_modules local sobrescriba el del contenedor
+
+# Definición de volúmenes persistentes
+volumes:
+  postgres_data:

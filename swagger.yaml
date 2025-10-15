@@ -1,0 +1,126 @@
+openapi: 3.0.0
+info:
+  title: Anon-Connect API - Generación de Alias
+  description: API para autenticación y manejo de Alias criptográficos.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Servidor de Desarrollo Local
+
+components:
+  securitySchemes:
+    # 1. Define el esquema de seguridad (Bearer Token)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          example: usuario@ejemplo.com
+        password:
+          type: string
+          example: MiContraseñaSegura123!
+    KeyPurpose:
+      type: object
+      properties:
+        purpose:
+          type: string
+          example: Contacto de emergencia para mi auto
+    AliasRevoke:
+      type: object
+      properties:
+        alias:
+          type: string
+          example: 4b84c7cbfa15c5ddade32b76908726e235e1fe4c5bf932953be2dd28e48ffc71
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión y obtener JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      responses:
+        '200':
+          description: Inicio de sesión exitoso. Retorna un Token JWT.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  
+  /keys/generate:
+    post:
+      tags:
+        - Alias (Protegidas)
+      summary: Generar un nuevo Alias de contacto
+      security: # 2. Aplica la seguridad definida arriba
+        - BearerAuth: [] 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyPurpose'
+      responses:
+        '201':
+          description: Alias generado con éxito.
+        '401':
+          description: Token no proporcionado o inválido.
+
+  /keys/revoke:
+    delete:
+      tags:
+        - Alias (Protegidas)
+      summary: Revocar (desactivar) un Alias
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AliasRevoke'
+      responses:
+        '200':
+          description: Alias revocado con éxito.
+        '404':
+          description: Alias no encontrado o no pertenece al usuario.
+
+  /keys/status/{alias}:
+    get:
+      tags:
+        - Alias (Públicas)
+      summary: Consultar el estado de un Alias
+      parameters:
+        - in: path
+          name: alias
+          required: true
+          schema:
+            type: string
+          description: El Alias criptográfico a consultar.
+      responses:
+        '200':
+          description: Estado del Alias.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isActive:
+                    type: boolean
+                    example: true
+        '404':
+          description: Alias no encontrado.

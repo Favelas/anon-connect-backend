@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control de Anon-Connect</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background-color: #f4f4f9; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        h1 { text-align: center; color: #333; }
+        label, input, button { display: block; width: 100%; margin-bottom: 15px; }
+        input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; transition: background-color 0.3s; }
+        #generateBtn { background-color: #28a745; }
+        #generateBtn:hover { background-color: #218838; }
+        #revokeBtn { background-color: #dc3545; }
+        #revokeBtn:hover { background-color: #c82333; }
+        #statusBtn { background-color: #007bff; }
+        #statusBtn:hover { background-color: #0056b3; }
+        .output { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
+        .qr-section { text-align: center; margin-top: 20px; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🛡️ Panel de Control de Llaves</h1>
+        <p>Tu API corre en **`http://localhost:3000`**</p>
+        
+        <label for="purpose">Propósito de la Llave (para POST/generate):</label>
+        <input type="text" id="purpose" value="Contacto para Soporte Técnico">
+        <button id="generateBtn">1. Generar Nuevo Alias (POST)</button>
+
+        <hr>
+
+        <label for="aliasInput">Alias para Revocar o Consultar:</label>
+        <input type="text" id="aliasInput" placeholder="Pega aquí el Alias completo">
+        
+        <button id="revokeBtn">2. Revocar Alias (DELETE)</button>
+        <button id="statusBtn">3. Consultar Estado (GET)</button>
+        
+        <hr>
+        
+        <h2>Resultados:</h2>
+        <div class="output" id="output">Esperando acciones...</div>
+        
+        <div class="qr-section" id="qrContainer"></div>
+    </div>
+
+    <script>
+        // *** CONFIGURACIÓN ***
+        const BASE_URL = 'http://localhost:3000/api/keys';
+        const MOCKED_PURPOSE = document.getElementById('purpose');
+        const ALIAS_INPUT = document.getElementById('aliasInput');
+        const OUTPUT_DIV = document.getElementById('output');
+        const QR_CONTAINER = document.getElementById('qrContainer');
+
+        // Función auxiliar para mostrar resultados
+        function displayOutput(data) {
+            OUTPUT_DIV.textContent = JSON.stringify(data, null, 2);
+            // Si el resultado tiene qrImage, lo mostramos
+            if (data.qrImage) {
+                QR_CONTAINER.innerHTML = `<img src="${data.qrImage}" alt="QR Code" style="width: 200px; height: 200px; margin-top: 15px;">`;
+                ALIAS_INPUT.value = data.alias; // Rellenamos el input con el nuevo alias
+            } else {
+                QR_CONTAINER.innerHTML = '';
+            }
+        }
+
+        // 1. GENERAR NUEVO ALIAS (POST)
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            OUTPUT_DIV.textContent = 'Generando llave...';
+            try {
+                const response = await fetch(`${BASE_URL}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ purpose: MOCKED_PURPOSE.value }),
+                });
+
+                const data = await response.json();
+                displayOutput(data);
+
+            } catch (error) {
+                displayOutput({ error: 'Fallo al conectar con la API', details: error.message });
+            }
+        });
+
+        // 2. REVOCAR ALIAS (DELETE)
+        document.getElementById('revokeBtn').addEventListener('click', async () => {
+            const alias = ALIAS_INPUT.value;
+            if (!alias) return displayOutput({ error: 'Ingresa un Alias para revocar.' });
+
+            OUTPUT_DIV.textContent = `Revocando alias: ${alias}...`;
+            try {
+                const response = await fetch(`${BASE_URL}/revoke`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alias: alias }),
+                });
+
+                const data = await response.json();
+                displayOutput(data);
+
+            } catch (error) {
+                displayOutput({ error: 'Fallo al conectar con la API', details: error.message });
+            }
+        });
+
+        // 3. CONSULTAR ESTADO (GET)
+        document.getElementById('statusBtn').addEventListener('click', async () => {
+            const alias = ALIAS_INPUT.value;
+            if (!alias) return displayOutput({ error: 'Ingresa un Alias para consultar.' });
+
+            OUTPUT_DIV.textContent = `Consultando estado de alias: ${alias}...`;
+            try {
+                // Notar que el alias va en la URL para el método GET
+                const response = await fetch(`${BASE_URL}/status/${alias}`, {
+                    method: 'GET',
+                });
+
+                const data = await response.json();
+                displayOutput(data);
+
+            } catch (error) {
+                displayOutput({ error: 'Fallo al conectar con la API', details: error.message });
+            }
+        });
+    </script>
+</body>
+</html>
